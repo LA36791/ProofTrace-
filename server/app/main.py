@@ -36,8 +36,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-# The React/Vite frontend runs on port 5173 while FastAPI runs on port 8000.
-# Browser requests therefore require explicit CORS permission.
+# Allow both local development and the deployed Render frontend.
 # ---------------------------------------------------------------------------
 
 app.add_middleware(
@@ -45,6 +44,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://prooftrace-frontend-live.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -184,8 +184,8 @@ async def analyze_endpoint(
         # If the external LLM is unavailable or authentication fails,
         # safely fall back to the deterministic evidence gate.
         #
-        # This is intentional: the system must never fabricate a conclusion
-        # simply because the LLM is unavailable.
+        # The system must never fabricate a conclusion simply because
+        # the LLM is unavailable.
         result = analyze(
             selected,
             query,
