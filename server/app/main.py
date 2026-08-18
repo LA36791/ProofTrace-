@@ -1,4 +1,4 @@
-"""EvidenceRoom FastAPI application."""
+"""ProofTrace FastAPI application."""
 
 from contextlib import asynccontextmanager
 

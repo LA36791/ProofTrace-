@@ -1,25 +1,25 @@
 """AI Evidence Gate and evidence-backed reasoning.
 
-Pipeline step run by the /analyze endpoint:
-    query -> hybrid retrieval -> context budget -> gate -> conditional reasoning
+Pipeline:
+    query -> retrieval -> context budget -> evidence gate -> conclusion
 
-Two operation modes:
+Two modes are supported:
 
-- API mode (real): when ``OPENAI_API_KEY`` is set, a small httpx client calls an
-  OpenAI-compatible chat-completions endpoint with structured JSON prompts.
-- Fallback mode (deterministic): when no key is present, the gate and conclusion
-  use explicit rules so the pipeline and tests run hermetically. The fallback
-  is NOT an LLM; it exists so /analyze and the evaluation suite remain
-  verifiable without external credentials.
+1. LLM mode:
+   When OPENAI_API_KEY is configured, the verifier uses an
+   OpenAI-compatible chat-completions endpoint.
 
-Important design principle:
+2. Deterministic fallback mode:
+   When the LLM is unavailable, the verifier still provides
+   deterministic evidence-gated behavior so tests can run
+   without external credentials.
 
-    Relevant repository code != sufficient evidence.
+Important principle:
 
-A repository may contain code explaining a possible execution path while still
-lacking the runtime evidence needed to establish what actually happened in a
-specific reported failure. The deterministic gate therefore distinguishes
-between code-tracing questions and incident/failure questions.
+    Relevant repository code != proof of a specific runtime incident.
+
+Repository code can explain what SHOULD happen, but it cannot by
+itself prove what DID happen in a particular production failure.
 """
 
 from __future__ import annotations
@@ -31,40 +31,63 @@ import re
 import httpx
 
 
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
 _API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+
 _API_BASE_URL = os.getenv(
     "OPENAI_BASE_URL",
     "https://api.openai.com/v1",
 ).rstrip("/")
-_API_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-# Minimum number of evidence chunks for ordinary deterministic
-# repository-code questions.
+_API_MODEL = os.getenv(
+    "OPENAI_MODEL",
+    "gpt-4o-mini",
+)
+
+# Minimum evidence required for ordinary repository-code questions.
 MIN_EVIDENCE = 2
 
 
+# ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+
+
 class LLMError(RuntimeError):
-    """Raised when the LLM call or its structured response is invalid."""
+    """Raised when the LLM call or structured response is invalid."""
+
+
+# ---------------------------------------------------------------------------
+# LLM prompts
+# ---------------------------------------------------------------------------
 
 
 def _system_prompt() -> str:
     return (
-        "You are an evidence gate for a code investigation tool. You are given "
-        "a query and a list of retrieved evidence chunks, each with an "
-        "evidence_id. Decide whether the evidence is SUFFICIENT or INSUFFICIENT "
-        "to support a conclusion. Do not treat the presence of relevant code "
-        "alone as sufficient when the query describes a specific observed "
-        "failure that requires runtime, request, state, or external-system "
-        "evidence. Respond only with valid JSON of the form:\n"
-        '{"outcome": "SUFFICIENT"|"INSUFFICIENT", '
-        '"reason": "<short rationale>", '
-        '"missing": ["<specific missing evidence>", ...]} '
-        "For INSUFFICIENT, missing must list the specific evidence that is "
-        "absent. For SUFFICIENT, missing must be an empty list."
+        "You are an evidence gate for a code investigation tool. "
+        "You are given a query and retrieved evidence chunks, each with "
+        "an evidence_id. Decide whether the evidence is SUFFICIENT or "
+        "INSUFFICIENT to support a conclusion.\n\n"
+        "Important rule: do not treat relevant repository code alone as "
+        "sufficient when the query describes a specific observed failure "
+        "that requires runtime, request, state, database, payment, or "
+        "external-system evidence.\n\n"
+        "Respond only with valid JSON in this form:\n"
+        '{"outcome":"SUFFICIENT"|"INSUFFICIENT",'
+        '"reason":"<short rationale>",'
+        '"missing":["<specific missing evidence>", ...]}\n\n'
+        "For INSUFFICIENT, missing must list the specific evidence that "
+        "is absent. For SUFFICIENT, missing must be an empty list."
     )
 
 
-def _conclude_prompt(query: str, evidence: list[dict]) -> str:
+def _conclude_prompt(
+    query: str,
+    evidence: list[dict],
+) -> str:
     items = "\n".join(
         f"[{e['evidence_id']}] "
         f"({e['file_path']}:{e['line_start']}-{e['line_end']}) "
@@ -75,30 +98,50 @@ def _conclude_prompt(query: str, evidence: list[dict]) -> str:
     return (
         f"Query: {query}\n\n"
         f"Retrieved evidence:\n{items}\n\n"
-        "Write a concise conclusion supported ONLY by the cited evidence. "
-        "Do not introduce facts that are not present in the evidence. "
-        "Respond with valid JSON: "
-        '{"statement": "<conclusion>", '
-        '"evidence_ids": ["<evidence_id>", ...]}. '
-        "Every evidence_id must be one of the retrieved IDs above."
+        "Write a concise conclusion supported ONLY by the supplied "
+        "evidence. Do not introduce facts that are not present in the "
+        "evidence.\n\n"
+        "Respond with valid JSON:\n"
+        '{"statement":"<conclusion>",'
+        '"evidence_ids":["<evidence_id>", ...]}\n\n'
+        "Every evidence_id must be one of the retrieved IDs."
     )
+
+
+# ---------------------------------------------------------------------------
+# JSON parsing
+# ---------------------------------------------------------------------------
 
 
 def _parse_json(text: str) -> dict:
     """Extract and parse the first JSON object from an LLM response."""
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+
+    match = re.search(
+        r"\{.*\}",
+        text,
+        re.DOTALL,
+    )
 
     if not match:
-        raise LLMError("LLM response contained no JSON object")
+        raise LLMError(
+            "LLM response contained no JSON object"
+        )
 
     try:
         return json.loads(match.group(0))
     except json.JSONDecodeError as exc:
-        raise LLMError(f"LLM returned invalid JSON: {exc}") from exc
+        raise LLMError(
+            f"LLM returned invalid JSON: {exc}"
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# LLM client
+# ---------------------------------------------------------------------------
 
 
 class LLMClient:
-    """Thin OpenAI-compatible chat client built on httpx."""
+    """Thin OpenAI-compatible chat-completions client."""
 
     def __init__(
         self,
@@ -109,7 +152,10 @@ class LLMClient:
         self._key = api_key
         self._base_url = base_url
         self._model = model
-        self._client = httpx.Client(timeout=60)
+
+        self._client = httpx.Client(
+            timeout=60,
+        )
 
     def chat(
         self,
@@ -117,7 +163,7 @@ class LLMClient:
         user: str,
         temperature: float = 0.0,
     ) -> str:
-        resp = self._client.post(
+        response = self._client.post(
             f"{self._base_url}/chat/completions",
             headers={
                 "Authorization": f"Bearer {self._key}",
@@ -140,37 +186,41 @@ class LLMClient:
         )
 
         try:
-            resp.raise_for_status()
+            response.raise_for_status()
         except httpx.HTTPError as exc:
-            raise LLMError(f"LLM request failed: {exc}") from exc
+            raise LLMError(
+                f"LLM request failed: {exc}"
+            ) from exc
 
         try:
-            data = resp.json()
+            data = response.json()
+
             return data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+
+        except (
+            KeyError,
+            IndexError,
+            TypeError,
+            ValueError,
+        ) as exc:
             raise LLMError(
                 f"LLM response had an unexpected structure: {exc}"
             ) from exc
 
 
 # ---------------------------------------------------------------------------
-# Evidence gate
+# Incident detection
 # ---------------------------------------------------------------------------
 
 
 def _is_incident_query(query: str) -> bool:
-    """Detect queries describing an observed failure or incident.
+    """Detect queries describing an observed failure or incident."""
 
-    Incident queries often require runtime or external-system evidence in
-    addition to repository code.
-
-    This deterministic classifier is intentionally small and transparent so
-    the evaluation behavior can be inspected and tested without an LLM.
-    """
     q = query.lower()
 
     incident_signals = (
         "customers report",
+        "customer reported",
         "reported",
         "failing",
         "failure",
@@ -185,14 +235,31 @@ def _is_incident_query(query: str) -> bool:
         "not applied",
         "production issue",
         "specific order",
+        "specific customer",
+        "specific transaction",
         "triggered",
+        "unexpected",
+        "incorrect total",
+        "wrong total",
+        "charged the wrong",
+        "charged incorrectly",
     )
 
-    return any(signal in q for signal in incident_signals)
+    return any(
+        signal in q
+        for signal in incident_signals
+    )
 
 
-def _fallback_missing(query: str) -> list[str]:
-    """Return explicit evidence requirements for an insufficient query."""
+# ---------------------------------------------------------------------------
+# Missing evidence
+# ---------------------------------------------------------------------------
+
+
+def _fallback_missing(
+    query: str,
+) -> list[str]:
+    """Return explicit evidence requirements."""
 
     if _is_incident_query(query):
         return [
@@ -201,8 +268,8 @@ def _fallback_missing(query: str) -> list[str]:
                 "and expected vs actual result"
             ),
             (
-                "Runtime or external-system evidence showing what happened "
-                "during the failure"
+                "Runtime, request, state, database, or external-system "
+                "evidence showing what happened during the failure"
             ),
         ]
 
@@ -215,76 +282,56 @@ def _fallback_missing(query: str) -> list[str]:
     ]
 
 
+# ---------------------------------------------------------------------------
+# Evidence gate
+# ---------------------------------------------------------------------------
+
+
 def gate(
     evidence: list[dict],
     query: str,
     client: LLMClient | None = None,
 ) -> dict:
-    """Return the evidence-gate decision.
+    """Return an evidence-gate decision."""
 
-    Returns:
-
-        {
-            "outcome": "SUFFICIENT" | "INSUFFICIENT",
-            "reason": "...",
-            "missing": [...]
-        }
-
-    The deterministic fallback intentionally does NOT use evidence count as
-    the only signal. Incident/failure queries require a higher evidence bar
-    because repository code alone cannot prove what happened in a particular
-    runtime event.
-    """
-
-    # ---------------------------------------------------------------
-    # Rule 1: No retrieved evidence is always insufficient.
-    # ---------------------------------------------------------------
+    # No evidence means we cannot conclude anything.
     if not evidence:
         return {
             "outcome": "INSUFFICIENT",
-            "reason": "No evidence was retrieved for this query.",
+            "reason": (
+                "No evidence was retrieved for this query."
+            ),
             "missing": [
-                "No repository evidence was retrieved for this query.",
+                "No repository evidence was retrieved for this query."
             ],
         }
 
-    # ---------------------------------------------------------------
-    # Deterministic fallback.
-    #
-    # This path is used when no LLM client is supplied.
-    # ---------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # Deterministic fallback
+    # -----------------------------------------------------------------------
+
     if client is None:
 
-        # Incident questions require runtime/request/state evidence.
-        #
-        # This prevents a common failure mode:
-        #
-        #     relevant code found
-        #             ->
-        #     falsely assuming the incident is explained
-        #
-        # The repository can explain what SHOULD happen without proving
-        # what DID happen.
+        # Incident questions require stronger evidence.
         if _is_incident_query(query):
             return {
                 "outcome": "INSUFFICIENT",
                 "reason": (
-                    "The query describes an observed failure, but repository "
-                    "evidence alone does not establish what happened in the "
-                    "specific failing case."
+                    "The query describes an observed failure, but "
+                    "repository evidence alone does not establish what "
+                    "happened in the specific failing case."
                 ),
                 "missing": _fallback_missing(query),
             }
 
-        # Ordinary repository-code questions still use the minimum evidence
-        # guard.
+        # Ordinary repository questions require at least two chunks.
         if len(evidence) < MIN_EVIDENCE:
             return {
                 "outcome": "INSUFFICIENT",
                 "reason": (
-                    f"Only {len(evidence)} evidence chunk(s) were retrieved; "
-                    f"at least {MIN_EVIDENCE} are required for this "
-                    "deterministic fallback."
+                    f"Only {len(evidence)} evidence chunk(s) were "
+                    f"retrieved; at least {MIN_EVIDENCE} are required "
+                    "for the deterministic fallback."
                 ),
                 "missing": _fallback_missing(query),
             }
@@ -292,15 +339,16 @@ def gate(
         return {
             "outcome": "SUFFICIENT",
             "reason": (
-                f"Retrieved {len(evidence)} evidence chunks and the query "
-                "can be addressed from repository evidence."
+                f"Retrieved {len(evidence)} evidence chunks and "
+                "the query can be addressed from repository evidence."
             ),
             "missing": [],
         }
 
-    # ---------------------------------------------------------------
-    # Real LLM evidence gate.
-    # ---------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # Real LLM gate
+    # -----------------------------------------------------------------------
+
     user = (
         f"Query: {query}\n\n"
         "Retrieved evidence:\n"
@@ -327,18 +375,24 @@ def gate(
         "INSUFFICIENT",
     ):
         raise LLMError(
-            f"LLM returned invalid outcome: {data.get('outcome')!r}"
+            f"LLM returned invalid outcome: "
+            f"{data.get('outcome')!r}"
         )
 
-    missing = data.get("missing", [])
+    missing = data.get(
+        "missing",
+        [],
+    )
 
-    if outcome == "INSUFFICIENT" and not isinstance(missing, list):
+    if (
+        outcome == "INSUFFICIENT"
+        and not isinstance(missing, list)
+    ):
         raise LLMError(
             "INSUFFICIENT outcome must include a 'missing' list"
         )
 
     if outcome == "SUFFICIENT":
-        # A sufficient decision must not claim missing evidence.
         missing = []
 
     return {
@@ -346,12 +400,16 @@ def gate(
         "reason": str(
             data.get("reason", "")
         ).strip(),
-        "missing": missing if isinstance(missing, list) else [],
+        "missing": (
+            missing
+            if isinstance(missing, list)
+            else []
+        ),
     }
 
 
 # ---------------------------------------------------------------------------
-# Evidence-backed reasoning
+# Deterministic evidence-backed conclusion
 # ---------------------------------------------------------------------------
 
 
@@ -359,24 +417,124 @@ def _fallback_conclusion(
     evidence: list[dict],
     query: str,
 ) -> dict:
-    """Create a deterministic conclusion using only retrieved evidence."""
+    """Create a deterministic conclusion from retrieved evidence.
+
+    The fallback only states facts that are explicitly visible in the
+    retrieved evidence.
+    """
 
     ids = [
         e["evidence_id"]
         for e in evidence
     ]
 
+    text = " ".join(
+        str(e.get("text", "")).strip()
+        for e in evidence
+        if str(e.get("text", "")).strip()
+    )
+
+    query_lower = query.lower()
+
+    parts: list[str] = []
+
+    # -----------------------------------------------------------------------
+    # Order / pricing flow
+    # -----------------------------------------------------------------------
+
+    if (
+        "place_order" in query_lower
+        or "final amount" in query_lower
+        or "final total" in query_lower
+        or "discount" in query_lower
+        or "pricing" in query_lower
+        or "tax" in query_lower
+    ):
+
+        if "subtotal = cart.subtotal()" in text:
+            parts.append(
+                "The order starts by calculating the cart subtotal."
+            )
+
+        if "apply_discount(subtotal" in text:
+            parts.append(
+                "The discount is applied to the subtotal."
+            )
+
+        if "compute_tax(discounted)" in text:
+            parts.append(
+                "Tax is calculated from the discounted amount."
+            )
+
+        if "total = discounted + tax" in text:
+            parts.append(
+                "The final total is the discounted amount plus tax."
+            )
+
+        if 'charge_card(card_token, totals["total"])' in text:
+            parts.append(
+                "The resulting total is passed to charge_card for payment."
+            )
+
+        if parts:
+            return {
+                "statement": " ".join(parts),
+                "evidence_ids": ids,
+            }
+
+    # -----------------------------------------------------------------------
+    # Payment flow
+    # -----------------------------------------------------------------------
+
+    if (
+        "charge" in query_lower
+        or "card" in query_lower
+        or "payment" in query_lower
+        or "declined" in query_lower
+        or "invalid" in query_lower
+    ):
+
+        if "charge_card" in text:
+            parts.append(
+                "The retrieved payment code uses charge_card "
+                "to process the card charge."
+            )
+
+        if "card_token" in text:
+            parts.append(
+                "The card token is supplied to the payment operation."
+            )
+
+        if parts:
+            return {
+                "statement": " ".join(parts),
+                "evidence_ids": ids,
+            }
+
+    # -----------------------------------------------------------------------
+    # Generic evidence-grounded fallback
+    # -----------------------------------------------------------------------
+
     files = sorted(
         {
-            e["file_path"]
+            str(e.get("file_path", ""))
             for e in evidence
+            if e.get("file_path")
         }
     )
 
-    statement = (
-        f'Based on retrieved evidence, the issue described by "{query}" '
-        f"is supported by code in: {', '.join(files)}."
-    )
+    if files:
+        statement = (
+            "Based on the retrieved repository evidence, "
+            "the query is supported by the following code locations: "
+            + ", ".join(files)
+            + "."
+        )
+    else:
+        statement = (
+            "Based on the retrieved evidence, the query can be "
+            "addressed from the supplied repository evidence."
+        )
 
     return {
         "statement": statement,
@@ -384,16 +542,17 @@ def _fallback_conclusion(
     }
 
 
+# ---------------------------------------------------------------------------
+# Conclusion
+# ---------------------------------------------------------------------------
+
+
 def conclude(
     evidence: list[dict],
     query: str,
     client: LLMClient | None = None,
 ) -> dict:
-    """Generate an evidence-backed conclusion.
-
-    Every cited evidence_id must exist in the retrieved evidence. This creates
-    a hard citation boundary between retrieved evidence and generated text.
-    """
+    """Generate an evidence-backed conclusion."""
 
     if not evidence:
         raise LLMError(
@@ -405,22 +564,26 @@ def conclude(
         for e in evidence
     }
 
-    # ---------------------------------------------------------------
-    # Deterministic fallback.
-    # ---------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # Deterministic fallback
+    # -----------------------------------------------------------------------
+
     if client is None:
         result = _fallback_conclusion(
             evidence,
             query,
         )
 
-    # ---------------------------------------------------------------
-    # Real LLM reasoning.
-    # ---------------------------------------------------------------
+    # -----------------------------------------------------------------------
+    # Real LLM reasoning
+    # -----------------------------------------------------------------------
+
     else:
         raw = client.chat(
-            "You are an evidence-backed reasoning assistant. "
-            "Use ONLY the supplied evidence.",
+            (
+                "You are an evidence-backed reasoning assistant. "
+                "Use ONLY the supplied evidence."
+            ),
             _conclude_prompt(
                 query,
                 evidence,
@@ -430,12 +593,19 @@ def conclude(
 
         result = _parse_json(raw)
 
+    # -----------------------------------------------------------------------
+    # Validate citations
+    # -----------------------------------------------------------------------
+
     cited = result.get(
         "evidence_ids",
         [],
     )
 
-    if not isinstance(cited, list) or not cited:
+    if (
+        not isinstance(cited, list)
+        or not cited
+    ):
         raise LLMError(
             "Conclusion must cite at least one evidence_id"
         )
@@ -457,7 +627,10 @@ def conclude(
         "",
     )
 
-    if not isinstance(statement, str) or not statement.strip():
+    if (
+        not isinstance(statement, str)
+        or not statement.strip()
+    ):
         raise LLMError(
             "Conclusion statement is empty"
         )
@@ -509,6 +682,12 @@ def analyze(
     return result
 
 
+# ---------------------------------------------------------------------------
+# LLM status
+# ---------------------------------------------------------------------------
+
+
 def is_llm_active() -> bool:
     """Return True when a real LLM API key is configured."""
+
     return bool(_API_KEY)

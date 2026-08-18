@@ -102,7 +102,7 @@ function App() {
       setError(
         err instanceof Error
           ? err.message
-          : "Unable to connect to the EvidenceRoom backend.",
+          : "Unable to connect to the ProofTrace backend.",
       );
       setAnalysis(null);
       setEvidence([]);
@@ -123,7 +123,7 @@ function App() {
         <div className="brand">
           <div className="brand-mark">E</div>
           <div>
-            <div className="brand-name">EvidenceRoom</div>
+            <div className="brand-name">ProofTrace</div>
             <div className="brand-subtitle">AI evidence investigation</div>
           </div>
         </div>
@@ -322,7 +322,7 @@ function App() {
             <section className="principle-banner">
               <div className="principle-icon">◈</div>
               <div>
-                <strong>EvidenceRoom principle</strong>
+                <strong>ProofTrace principle</strong>
                 <span>
                   Relevant code explains what should happen. Runtime evidence
                   is required to prove what actually happened.
@@ -334,7 +334,7 @@ function App() {
       </main>
 
       <footer className="footer">
-        <span>EvidenceRoom</span>
+        <span>ProofTrace</span>
         <span>Hybrid retrieval · Context budget · Evidence gate · Abstention</span>
       </footer>
     </div>
@@ -384,4 +384,3 @@ function EvidenceCard({
 }
 
 export default App;
-
