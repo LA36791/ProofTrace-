@@ -1,0 +1,13 @@
+css
+html {
+  background: #080b10;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
