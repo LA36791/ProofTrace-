@@ -5,3 +5,4 @@ python-dotenv==1.2.3
 SQLAlchemy==2.0.52
 uvicorn==0.52.3
 websockets==17.0.1
+httpx
