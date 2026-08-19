@@ -4,23 +4,44 @@ Run:
     .venv/Scripts/python.exe -m server.app.evaluate.run
 
 BASELINE:
-    query -> lexical retrieval -> context budget -> reasoning (no gate)
+    query
+        -> lexical retrieval
+        -> context budget
+        -> reasoning
 
 CURRENT:
-    query -> hybrid retrieval -> context budget -> gate
-    -> conditional reasoning/abstention
+    query
+        -> hybrid retrieval
+        -> corrective retrieval
+        -> context budget
+        -> evidence sufficiency gate
+        -> conditional reasoning / abstention
 
-Works hermetically without a real LLM. If OPENAI_API_KEY is set but invalid,
-the LLM path degrades to the deterministic fallback and the run still
-completes.
+The evaluation is deterministic and works without a real LLM.
+
+The CURRENT pipeline intentionally mirrors the production Evidence Room
+pipeline:
+
+    Hybrid RAG
+        +
+    Corrective RAG
+        ->
+    Budget selection
+        ->
+    Evidence verification / sufficiency gate
+        ->
+    Evidence-backed reasoning or safe abstention
 
 The evaluation distinguishes:
 - retrieval quality
+- corrective retrieval behavior
 - gate accuracy
 - correct abstention
 - citation correctness
 - context size
 - retrieval latency
+- candidate reduction
+- query-term coverage
 """
 
 from __future__ import annotations
@@ -32,6 +53,7 @@ from pathlib import Path
 
 from server.app.ingest import load_chunks
 from server.app.retrieval import (
+    correct_retrieval,
     hybrid_search,
     lexical_search,
     select_with_budget,
@@ -62,6 +84,11 @@ RESULTS_DIR = PROJECT_ROOT / "eval" / "results"
 TOP_K = 5
 MAX_TOKENS = 800
 
+# Corrective RAG receives a larger candidate pool than the final top_k.
+# This gives it room to identify and remove weak/noisy evidence.
+CANDIDATE_MULTIPLIER = 2
+MIN_CANDIDATES = 8
+
 
 def load_queries(path: Path = QUERIES_PATH) -> list[dict]:
     """Load the labeled evaluation queries."""
@@ -76,13 +103,29 @@ def relevant_ids_for(
 ) -> set[str]:
     """Map labeled relevant file paths to evidence chunk IDs."""
 
-    relevant_paths = set(case.get("relevant", []))
+    relevant_paths = set(
+        case.get("relevant", [])
+    )
 
     return {
         chunk["evidence_id"]
         for chunk in chunks
         if chunk["file_path"] in relevant_paths
     }
+
+
+def _candidate_k(
+    chunk_count: int,
+) -> int:
+    """Return the candidate pool size used before corrective retrieval."""
+
+    return min(
+        chunk_count,
+        max(
+            TOP_K * CANDIDATE_MULTIPLIER,
+            MIN_CANDIDATES,
+        ),
+    )
 
 
 def _budget_select(
@@ -110,7 +153,15 @@ def run_baseline(
     chunks: list[dict],
     query: str,
 ) -> dict:
-    """Run lexical retrieval without an evidence gate."""
+    """Run the baseline lexical retrieval pipeline.
+
+    Baseline intentionally does not use:
+    - Hybrid RAG
+    - Corrective RAG
+    - Evidence gate
+
+    This provides a stable comparison point for the improved pipeline.
+    """
 
     start = time.perf_counter()
 
@@ -124,7 +175,9 @@ def run_baseline(
         time.perf_counter() - start
     ) * 1000.0
 
-    selected = _budget_select(ranked)
+    selected = _budget_select(
+        ranked
+    )
 
     retrieved_ids = [
         result["evidence_id"]
@@ -136,7 +189,7 @@ def run_baseline(
         for result in selected
     ]
 
-    # Baseline always reasons when evidence exists.
+    # Baseline reasons whenever evidence exists.
     if selected:
         conclusion = conclude(
             selected,
@@ -148,16 +201,36 @@ def run_baseline(
 
     return {
         "mode": "lexical",
+        "retrieval_pipeline": [
+            "lexical",
+            "budget",
+            "reasoning",
+        ],
         "retrieved_ids": retrieved_ids,
         "selected_ids": selected_ids,
-        "context_tokens": context_tokens(selected),
+        "retrieved_count": len(ranked),
+        "corrected_count": None,
+        "context_tokens": context_tokens(
+            selected
+        ),
         "retrieval_latency_ms": round(
             latency_ms,
             3,
         ),
         "gate_outcome": None,
+        "corrective_status": None,
+        "corrective_reason": None,
+        "query_coverage": None,
+        "evidence_files": sorted(
+            {
+                str(item.get("file_path", ""))
+                for item in selected
+                if item.get("file_path")
+            }
+        ),
         "conclusion": conclusion,
         "llm_active": False,
+        "llm_error": None,
     }
 
 
@@ -165,31 +238,86 @@ def run_current(
     chunks: list[dict],
     query: str,
 ) -> dict:
-    """Run hybrid retrieval, budget, evidence gate and conditional reasoning."""
+    """Run the production Hybrid + Corrective RAG pipeline.
+
+    Pipeline:
+
+        hybrid retrieval
+            ->
+        corrective retrieval
+            ->
+        context budget
+            ->
+        evidence gate
+            ->
+        conditional reasoning / abstention
+
+    The retrieval latency includes both Hybrid RAG and Corrective RAG,
+    because both are part of the current retrieval pipeline.
+    """
 
     start = time.perf_counter()
 
-    ranked = hybrid_search(
+    # ---------------------------------------------------------------
+    # 1. Hybrid RAG candidate retrieval
+    # ---------------------------------------------------------------
+
+    candidate_k = _candidate_k(
+        len(chunks)
+    )
+
+    hybrid_candidates = hybrid_search(
         chunks,
+        query,
+        top_k=candidate_k,
+    )
+
+    # ---------------------------------------------------------------
+    # 2. Corrective RAG
+    #
+    # Corrective retrieval:
+    # - removes weak candidates
+    # - improves query-term coverage
+    # - deduplicates evidence
+    # - encourages file diversity
+    # - reranks candidates deterministically
+    # ---------------------------------------------------------------
+
+    correction = correct_retrieval(
+        hybrid_candidates,
         query,
         top_k=TOP_K,
     )
 
-    latency_ms = (
+    corrected = correction[
+        "results"
+    ]
+
+    retrieval_latency_ms = (
         time.perf_counter() - start
     ) * 1000.0
 
-    selected = _budget_select(ranked)
+    # ---------------------------------------------------------------
+    # 3. Context budget
+    # ---------------------------------------------------------------
+
+    selected = _budget_select(
+        corrected
+    )
 
     retrieved_ids = [
         result["evidence_id"]
-        for result in ranked
+        for result in corrected
     ]
 
     selected_ids = [
         result["evidence_id"]
         for result in selected
     ]
+
+    # ---------------------------------------------------------------
+    # 4. Conditional evidence reasoning / gate
+    # ---------------------------------------------------------------
 
     client = (
         LLMClient()
@@ -208,8 +336,9 @@ def run_current(
         )
 
     except LLMError as exc:
-        # If an API key exists but the LLM call fails, fall back to the
-        # deterministic implementation so evaluation remains reproducible.
+        # If an API key exists but the LLM call fails, use the
+        # deterministic verifier fallback. The evaluation must remain
+        # safe and reproducible.
         result = analyze(
             selected,
             query,
@@ -220,18 +349,69 @@ def run_current(
         llm_error = str(exc)
 
     return {
-        "mode": "hybrid",
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+            "hybrid",
+            "corrective",
+            "budget",
+            "verifier",
+        ],
+
+        # Hybrid candidate pool before corrective filtering.
+        "hybrid_candidate_count": len(
+            hybrid_candidates
+        ),
+
+        # Final candidates after corrective retrieval.
+        "retrieved_count": len(
+            corrected
+        ),
+
+        # Evidence entering the verifier after context budgeting.
+        "selected_count": len(
+            selected
+        ),
+
         "retrieved_ids": retrieved_ids,
         "selected_ids": selected_ids,
-        "context_tokens": context_tokens(selected),
+
+        "context_tokens": context_tokens(
+            selected
+        ),
+
         "retrieval_latency_ms": round(
-            latency_ms,
+            retrieval_latency_ms,
             3,
         ),
-        "gate_outcome": result["outcome"],
-        "reason": result["reason"],
-        "missing": result["missing"],
-        "conclusion": result["conclusion"],
+
+        # Corrective RAG trace.
+        "corrective_status": correction[
+            "status"
+        ],
+        "corrective_reason": correction[
+            "reason"
+        ],
+        "query_coverage": correction[
+            "query_coverage"
+        ],
+        "evidence_files": correction[
+            "files"
+        ],
+
+        # Evidence gate / reasoning output.
+        "gate_outcome": result[
+            "outcome"
+        ],
+        "reason": result[
+            "reason"
+        ],
+        "missing": result[
+            "missing"
+        ],
+        "conclusion": result[
+            "conclusion"
+        ],
+
         "llm_active": llm_active,
         "llm_error": llm_error,
     }
@@ -243,7 +423,9 @@ def _add_retrieval_metrics(
 ) -> None:
     """Add deterministic retrieval metrics to an evaluation record."""
 
-    retrieved = record["retrieved_ids"]
+    retrieved = record[
+        "retrieved_ids"
+    ]
 
     record["relevant_ids"] = sorted(
         relevant
@@ -279,7 +461,7 @@ def _add_gate_metrics(
     )
 
     if outcome is None:
-        # Baseline has no gate, so these metrics are undefined.
+        # Baseline has no evidence gate.
         record["gate_accuracy"] = None
         record["abstention_correct"] = None
         return
@@ -298,21 +480,21 @@ def _add_gate_metrics(
 def _add_citation_metric(
     record: dict,
 ) -> None:
-    """Evaluate citations while treating correct abstention as valid behavior.
+    """Evaluate citations and safe abstention behavior.
 
-    Important distinction:
+    Rules:
 
         INSUFFICIENT + no conclusion
-            = correct safe abstention
+            -> valid safe abstention
 
         SUFFICIENT + conclusion + valid citations
-            = correct evidence-backed answer
+            -> valid evidence-backed answer
 
         INSUFFICIENT + conclusion
-            = unsafe behavior
+            -> unsafe behavior
 
         SUFFICIENT + missing/invalid citations
-            = invalid evidence attribution
+            -> invalid evidence attribution
     """
 
     conclusion = record.get(
@@ -328,9 +510,15 @@ def _add_citation_metric(
 
     record["citation_valid"] = citation_valid(
         cited,
-        set(record["selected_ids"]),
-        conclusion_generated=conclusion is not None,
-        gate_outcome=record.get("gate_outcome"),
+        set(
+            record["selected_ids"]
+        ),
+        conclusion_generated=(
+            conclusion is not None
+        ),
+        gate_outcome=record.get(
+            "gate_outcome"
+        ),
     )
 
 
@@ -340,6 +528,7 @@ def evaluate_all(
     """Run every labeled query through both pipelines."""
 
     cases = load_queries()
+
     per_case = []
 
     for case in cases:
@@ -405,6 +594,8 @@ def evaluate_all(
     return {
         "top_k": TOP_K,
         "max_tokens": MAX_TOKENS,
+        "candidate_multiplier": CANDIDATE_MULTIPLIER,
+        "min_candidates": MIN_CANDIDATES,
         "cases": per_case,
     }
 
@@ -417,8 +608,13 @@ def summarize(
     lines = []
 
     for case in report["cases"]:
-        baseline = case["baseline"]
-        current = case["current"]
+        baseline = case[
+            "baseline"
+        ]
+
+        current = case[
+            "current"
+        ]
 
         lines.append(
             f"[{case['id']}] "
@@ -437,7 +633,7 @@ def summarize(
             f"lat="
             f"{baseline['retrieval_latency_ms']:.1f}ms\n"
 
-            f"  current hyb: "
+            f"  current hyb+cor: "
             f"P@{TOP_K}="
             f"{current['precision_at_k']:.2f} "
             f"R@{TOP_K}="
@@ -455,10 +651,16 @@ def summarize(
             f"abstention="
             f"{current['abstention_correct']} "
             f"citation_valid="
-            f"{current['citation_valid']}\n"
+            f"{current['citation_valid']} "
+            f"corrective="
+            f"{current['corrective_status']} "
+            f"coverage="
+            f"{current['query_coverage']:.2f}\n"
         )
 
-    return "\n".join(lines)
+    return "\n".join(
+        lines
+    )
 
 
 def write_report(
@@ -509,6 +711,17 @@ def main() -> None:
         "chunk_count": len(chunks),
         "llm_active": is_llm_active(),
         "llm_dependent_metrics_available": False,
+        "baseline_pipeline": [
+            "lexical",
+            "budget",
+            "reasoning",
+        ],
+        "current_pipeline": [
+            "hybrid",
+            "corrective",
+            "budget",
+            "verifier",
+        ],
     }
 
     output_path = write_report(

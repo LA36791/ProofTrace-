@@ -11,6 +11,7 @@ from server.app.db import get_session, init_db
 from server.app.ingest import load_chunks
 from server.app.models import Room
 from server.app.retrieval import (
+    correct_retrieval,
     hybrid_search,
     lexical_search,
     select_with_budget,
@@ -35,8 +36,6 @@ app = FastAPI(
 
 # ---------------------------------------------------------------------------
 # CORS
-# ---------------------------------------------------------------------------
-# Allow both local development and the deployed Render frontend.
 # ---------------------------------------------------------------------------
 
 app.add_middleware(
@@ -82,16 +81,43 @@ async def retrieve(
             query,
             top_k=top_k,
         )
+
+    elif mode == "hybrid_corrective":
+        # Keep Hybrid RAG as the retrieval engine.
+        # Corrective RAG only evaluates and improves its candidates.
+        candidate_k = min(
+            len(chunks),
+            max(top_k * 2, 8),
+        )
+
+        hybrid_candidates = hybrid_search(
+            chunks,
+            query,
+            top_k=candidate_k,
+        )
+
+        correction = correct_retrieval(
+            hybrid_candidates,
+            query,
+            top_k=top_k,
+        )
+
+        results = correction["results"]
+
     elif mode == "lexical":
         results = lexical_search(
             chunks,
             query,
             top_k=top_k,
         )
+
     else:
         raise HTTPException(
             status_code=400,
-            detail="mode must be 'lexical' or 'hybrid'",
+            detail=(
+                "mode must be 'lexical', 'hybrid', "
+                "or 'hybrid_corrective'"
+            ),
         )
 
     payload: dict = {
@@ -123,14 +149,18 @@ async def analyze_endpoint(
     max_tokens: int = 800,
 ):
     """
-    Run the complete investigation pipeline:
+    Run the complete evidence-grounded investigation pipeline.
 
-    query
-        -> hybrid retrieval
-        -> context budget
-        -> evidence sufficiency gate
-        -> conditional LLM reasoning
-        -> evidence-backed conclusion or abstention
+    Query
+        -> Hybrid RAG retrieval
+        -> Corrective RAG quality control
+        -> Context budget
+        -> Evidence sufficiency gate
+        -> Conditional LLM reasoning
+        -> Evidence-backed conclusion or abstention
+
+    Hybrid RAG remains the primary retrieval mechanism.
+    Corrective RAG is an additional deterministic quality-control layer.
     """
 
     chunks = await load_chunks()
@@ -144,19 +174,55 @@ async def analyze_endpoint(
             "conclusion": None,
             "llm_active": is_llm_active(),
             "retrieved_count": 0,
+            "corrected_count": 0,
             "selected_ids": [],
+            "retrieval_pipeline": [
+                "hybrid",
+                "corrective",
+                "budget",
+                "verifier",
+            ],
         }
 
-    # 1. Hybrid retrieval
-    ranked = hybrid_search(
+    # ------------------------------------------------------------------
+    # 1. Hybrid RAG
+    #
+    # Retrieve a slightly larger candidate pool so Corrective RAG has
+    # enough evidence to evaluate. This does NOT replace Hybrid RAG.
+    # ------------------------------------------------------------------
+
+    candidate_k = min(
+        len(chunks),
+        max(top_k * 2, 8),
+    )
+
+    hybrid_candidates = hybrid_search(
         chunks,
+        query,
+        top_k=candidate_k,
+    )
+
+    # ------------------------------------------------------------------
+    # 2. Corrective RAG
+    #
+    # Deterministically remove weak candidates, improve query coverage,
+    # deduplicate evidence and encourage useful file diversity.
+    # ------------------------------------------------------------------
+
+    correction = correct_retrieval(
+        hybrid_candidates,
         query,
         top_k=top_k,
     )
 
-    # 2. Context-budget selection
+    corrected = correction["results"]
+
+    # ------------------------------------------------------------------
+    # 3. Context budget
+    # ------------------------------------------------------------------
+
     budget = select_with_budget(
-        ranked,
+        corrected,
         max_tokens=max_tokens,
     )
 
@@ -164,11 +230,14 @@ async def analyze_endpoint(
 
     selected = [
         result
-        for result in ranked
+        for result in corrected
         if result["evidence_id"] in selected_ids
     ]
 
-    # 3. Conditional LLM reasoning
+    # ------------------------------------------------------------------
+    # 4. Conditional LLM reasoning
+    # ------------------------------------------------------------------
+
     client = LLMClient() if is_llm_active() else None
 
     try:
@@ -181,11 +250,7 @@ async def analyze_endpoint(
         result["llm_active"] = is_llm_active()
 
     except LLMError as exc:
-        # If the external LLM is unavailable or authentication fails,
-        # safely fall back to the deterministic evidence gate.
-        #
-        # The system must never fabricate a conclusion simply because
-        # the LLM is unavailable.
+        # Never fabricate a conclusion when the external LLM fails.
         result = analyze(
             selected,
             query,
@@ -195,9 +260,25 @@ async def analyze_endpoint(
         result["llm_active"] = False
         result["llm_error"] = str(exc)
 
-    # 4. Include retrieval metadata for the frontend/evaluation harness
-    result["retrieved_count"] = len(ranked)
+    # ------------------------------------------------------------------
+    # 5. Retrieval/evidence trace metadata
+    # ------------------------------------------------------------------
+
+    result["retrieved_count"] = len(hybrid_candidates)
+    result["corrected_count"] = len(corrected)
     result["selected_ids"] = budget["selected_ids"]
+
+    result["retrieval_pipeline"] = [
+        "hybrid",
+        "corrective",
+        "budget",
+        "verifier",
+    ]
+
+    result["corrective_status"] = correction["status"]
+    result["corrective_reason"] = correction["reason"]
+    result["query_coverage"] = correction["query_coverage"]
+    result["evidence_files"] = correction["files"]
 
     return result
 

@@ -1,6 +1,8 @@
 {
   "top_k": 5,
   "max_tokens": 800,
+  "candidate_multiplier": 2,
+  "min_candidates": 8,
   "cases": [
     {
       "id": "q_discount_insufficient",
@@ -8,6 +10,11 @@
       "ground_truth_sufficient": false,
       "baseline": {
         "mode": "lexical",
+        "retrieval_pipeline": [
+          "lexical",
+          "budget",
+          "reasoning"
+        ],
         "retrieved_ids": [
           "ev_c38d29306d112189",
           "ev_aef3521b2f1d538b",
@@ -22,9 +29,19 @@
           "ev_4057a301680a78a7",
           "ev_53cc42e20d05a211"
         ],
+        "retrieved_count": 5,
+        "corrected_count": null,
         "context_tokens": 299,
-        "retrieval_latency_ms": 0.484,
+        "retrieval_latency_ms": 0.953,
         "gate_outcome": null,
+        "corrective_status": null,
+        "corrective_reason": null,
+        "query_coverage": null,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/payments.py",
+          "data/demo_repo/pricing.py"
+        ],
         "conclusion": {
           "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax.",
           "evidence_ids": [
@@ -36,6 +53,7 @@
           ]
         },
         "llm_active": false,
+        "llm_error": null,
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -54,32 +72,32 @@
         "citation_valid": true
       },
       "current": {
-        "mode": "hybrid",
-        "retrieved_ids": [
-          "ev_c38d29306d112189",
-          "ev_aef3521b2f1d538b",
-          "ev_d2996b5bcfa58592",
-          "ev_4057a301680a78a7",
-          "ev_d809544a404fbb26"
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+          "hybrid",
+          "corrective",
+          "budget",
+          "verifier"
         ],
-        "selected_ids": [
-          "ev_c38d29306d112189",
-          "ev_aef3521b2f1d538b",
-          "ev_d2996b5bcfa58592",
-          "ev_4057a301680a78a7",
-          "ev_d809544a404fbb26"
-        ],
-        "context_tokens": 234,
-        "retrieval_latency_ms": 1.776,
+        "hybrid_candidate_count": 8,
+        "retrieved_count": 0,
+        "selected_count": 0,
+        "retrieved_ids": [],
+        "selected_ids": [],
+        "context_tokens": 0,
+        "retrieval_latency_ms": 3.789,
+        "corrective_status": "INSUFFICIENT",
+        "corrective_reason": "Hybrid retrieval returned candidates, but none passed the corrective relevance threshold.",
+        "query_coverage": 0.0,
+        "evidence_files": [],
         "gate_outcome": "INSUFFICIENT",
-        "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
+        "reason": "No evidence was retrieved for this query.",
         "missing": [
-          "A reproducible failing case with the relevant inputs and expected vs actual result",
-          "Runtime, request, state, database, or external-system evidence showing what happened during the failure"
+          "No repository evidence was retrieved for this query."
         ],
         "conclusion": null,
-        "llm_active": false,
-        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+        "llm_active": true,
+        "llm_error": null,
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -90,9 +108,9 @@
           "ev_d2996b5bcfa58592",
           "ev_d809544a404fbb26"
         ],
-        "precision_at_k": 1.0,
-        "recall_at_k": 0.625,
-        "ndcg_at_k": 1.0,
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "ndcg_at_k": 0.0,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -104,6 +122,11 @@
       "ground_truth_sufficient": true,
       "baseline": {
         "mode": "lexical",
+        "retrieval_pipeline": [
+          "lexical",
+          "budget",
+          "reasoning"
+        ],
         "retrieved_ids": [
           "ev_7348c004730e8794",
           "ev_d2996b5bcfa58592",
@@ -118,9 +141,18 @@
           "ev_aef3521b2f1d538b",
           "ev_a35039ed322910a1"
         ],
+        "retrieved_count": 5,
+        "corrected_count": null,
         "context_tokens": 348,
-        "retrieval_latency_ms": 0.508,
+        "retrieval_latency_ms": 0.393,
         "gate_outcome": null,
+        "corrective_status": null,
+        "corrective_reason": null,
+        "query_coverage": null,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/pricing.py"
+        ],
         "conclusion": {
           "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax. The resulting total is passed to charge_card for payment.",
           "evidence_ids": [
@@ -132,6 +164,7 @@
           ]
         },
         "llm_active": false,
+        "llm_error": null,
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -150,23 +183,39 @@
         "citation_valid": true
       },
       "current": {
-        "mode": "hybrid",
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+          "hybrid",
+          "corrective",
+          "budget",
+          "verifier"
+        ],
+        "hybrid_candidate_count": 10,
+        "retrieved_count": 5,
+        "selected_count": 5,
         "retrieved_ids": [
           "ev_7348c004730e8794",
-          "ev_d2996b5bcfa58592",
           "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
           "ev_a35039ed322910a1",
           "ev_aef3521b2f1d538b"
         ],
         "selected_ids": [
           "ev_7348c004730e8794",
-          "ev_d2996b5bcfa58592",
           "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
           "ev_a35039ed322910a1",
           "ev_aef3521b2f1d538b"
         ],
         "context_tokens": 348,
-        "retrieval_latency_ms": 2.109,
+        "retrieval_latency_ms": 2.138,
+        "corrective_status": "CORRECTED",
+        "corrective_reason": "Corrective retrieval retained 5 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "query_coverage": 0.384615,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/pricing.py"
+        ],
         "gate_outcome": "SUFFICIENT",
         "reason": "Retrieved 5 evidence chunks and the query can be addressed from repository evidence.",
         "missing": [],
@@ -174,8 +223,8 @@
           "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax. The resulting total is passed to charge_card for payment.",
           "evidence_ids": [
             "ev_7348c004730e8794",
-            "ev_d2996b5bcfa58592",
             "ev_c38d29306d112189",
+            "ev_d2996b5bcfa58592",
             "ev_a35039ed322910a1",
             "ev_aef3521b2f1d538b"
           ]
@@ -206,6 +255,11 @@
       "ground_truth_sufficient": false,
       "baseline": {
         "mode": "lexical",
+        "retrieval_pipeline": [
+          "lexical",
+          "budget",
+          "reasoning"
+        ],
         "retrieved_ids": [
           "ev_caca5d185320e853",
           "ev_a35039ed322910a1",
@@ -220,9 +274,18 @@
           "ev_ddcaf7f9a6341db2",
           "ev_7348c004730e8794"
         ],
+        "retrieved_count": 5,
+        "corrected_count": null,
         "context_tokens": 254,
-        "retrieval_latency_ms": 0.334,
+        "retrieval_latency_ms": 0.404,
         "gate_outcome": null,
+        "corrective_status": null,
+        "corrective_reason": null,
+        "query_coverage": null,
+        "evidence_files": [
+          "data/demo_repo/inventory.py",
+          "data/demo_repo/order.py"
+        ],
         "conclusion": {
           "statement": "Based on the retrieved repository evidence, the query is supported by the following code locations: data/demo_repo/inventory.py, data/demo_repo/order.py.",
           "evidence_ids": [
@@ -234,6 +297,7 @@
           ]
         },
         "llm_active": false,
+        "llm_error": null,
         "relevant_ids": [
           "ev_7348c004730e8794",
           "ev_a35039ed322910a1",
@@ -250,23 +314,33 @@
         "citation_valid": true
       },
       "current": {
-        "mode": "hybrid",
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+          "hybrid",
+          "corrective",
+          "budget",
+          "verifier"
+        ],
+        "hybrid_candidate_count": 9,
+        "retrieved_count": 2,
+        "selected_count": 2,
         "retrieved_ids": [
           "ev_caca5d185320e853",
-          "ev_a35039ed322910a1",
-          "ev_dd7df3535af38a8a",
-          "ev_ddcaf7f9a6341db2",
-          "ev_7348c004730e8794"
+          "ev_a35039ed322910a1"
         ],
         "selected_ids": [
           "ev_caca5d185320e853",
-          "ev_a35039ed322910a1",
-          "ev_dd7df3535af38a8a",
-          "ev_ddcaf7f9a6341db2",
-          "ev_7348c004730e8794"
+          "ev_a35039ed322910a1"
         ],
-        "context_tokens": 254,
-        "retrieval_latency_ms": 1.822,
+        "context_tokens": 134,
+        "retrieval_latency_ms": 2.015,
+        "corrective_status": "CORRECTED",
+        "corrective_reason": "Corrective retrieval retained 2 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "query_coverage": 0.285714,
+        "evidence_files": [
+          "data/demo_repo/inventory.py",
+          "data/demo_repo/order.py"
+        ],
         "gate_outcome": "INSUFFICIENT",
         "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
         "missing": [
@@ -285,8 +359,8 @@
           "ev_ddcaf7f9a6341db2"
         ],
         "precision_at_k": 1.0,
-        "recall_at_k": 0.8333333333333334,
-        "ndcg_at_k": 1.0,
+        "recall_at_k": 0.3333333333333333,
+        "ndcg_at_k": 0.5531464700081437,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -298,6 +372,11 @@
       "ground_truth_sufficient": true,
       "baseline": {
         "mode": "lexical",
+        "retrieval_pipeline": [
+          "lexical",
+          "budget",
+          "reasoning"
+        ],
         "retrieved_ids": [
           "ev_53cc42e20d05a211",
           "ev_28199a7ef4d5e50d",
@@ -308,9 +387,18 @@
           "ev_28199a7ef4d5e50d",
           "ev_a35039ed322910a1"
         ],
+        "retrieved_count": 3,
+        "corrected_count": null,
         "context_tokens": 202,
-        "retrieval_latency_ms": 0.351,
+        "retrieval_latency_ms": 0.366,
         "gate_outcome": null,
+        "corrective_status": null,
+        "corrective_reason": null,
+        "query_coverage": null,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/payments.py"
+        ],
         "conclusion": {
           "statement": "The retrieved payment code uses charge_card to process the card charge. The card token is supplied to the payment operation.",
           "evidence_ids": [
@@ -320,6 +408,7 @@
           ]
         },
         "llm_active": false,
+        "llm_error": null,
         "relevant_ids": [
           "ev_28199a7ef4d5e50d",
           "ev_53cc42e20d05a211",
@@ -335,27 +424,40 @@
         "citation_valid": true
       },
       "current": {
-        "mode": "hybrid",
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+          "hybrid",
+          "corrective",
+          "budget",
+          "verifier"
+        ],
+        "hybrid_candidate_count": 3,
+        "retrieved_count": 2,
+        "selected_count": 2,
         "retrieved_ids": [
           "ev_53cc42e20d05a211",
-          "ev_28199a7ef4d5e50d",
           "ev_a35039ed322910a1"
         ],
         "selected_ids": [
           "ev_53cc42e20d05a211",
-          "ev_28199a7ef4d5e50d",
           "ev_a35039ed322910a1"
         ],
-        "context_tokens": 202,
-        "retrieval_latency_ms": 1.037,
+        "context_tokens": 185,
+        "retrieval_latency_ms": 1.092,
+        "corrective_status": "CORRECTED",
+        "corrective_reason": "Corrective retrieval retained 2 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "query_coverage": 0.571429,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/payments.py"
+        ],
         "gate_outcome": "SUFFICIENT",
-        "reason": "Retrieved 3 evidence chunks and the query can be addressed from repository evidence.",
+        "reason": "Retrieved 2 evidence chunks and the query can be addressed from repository evidence.",
         "missing": [],
         "conclusion": {
           "statement": "The retrieved payment code uses charge_card to process the card charge. The card token is supplied to the payment operation.",
           "evidence_ids": [
             "ev_53cc42e20d05a211",
-            "ev_28199a7ef4d5e50d",
             "ev_a35039ed322910a1"
           ]
         },
@@ -369,8 +471,8 @@
           "ev_d2996b5bcfa58592"
         ],
         "precision_at_k": 1.0,
-        "recall_at_k": 0.6,
-        "ndcg_at_k": 0.7227265726449519,
+        "recall_at_k": 0.4,
+        "ndcg_at_k": 0.5531464700081437,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -382,13 +484,25 @@
       "ground_truth_sufficient": false,
       "baseline": {
         "mode": "lexical",
+        "retrieval_pipeline": [
+          "lexical",
+          "budget",
+          "reasoning"
+        ],
         "retrieved_ids": [],
         "selected_ids": [],
+        "retrieved_count": 0,
+        "corrected_count": null,
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.322,
+        "retrieval_latency_ms": 0.396,
         "gate_outcome": null,
+        "corrective_status": null,
+        "corrective_reason": null,
+        "query_coverage": null,
+        "evidence_files": [],
         "conclusion": null,
         "llm_active": false,
+        "llm_error": null,
         "relevant_ids": [],
         "precision_at_k": 0.0,
         "recall_at_k": 0.0,
@@ -398,11 +512,24 @@
         "citation_valid": false
       },
       "current": {
-        "mode": "hybrid",
+        "mode": "hybrid_corrective",
+        "retrieval_pipeline": [
+          "hybrid",
+          "corrective",
+          "budget",
+          "verifier"
+        ],
+        "hybrid_candidate_count": 0,
+        "retrieved_count": 0,
+        "selected_count": 0,
         "retrieved_ids": [],
         "selected_ids": [],
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.513,
+        "retrieval_latency_ms": 0.526,
+        "corrective_status": "INSUFFICIENT",
+        "corrective_reason": "Hybrid retrieval returned no candidates.",
+        "query_coverage": 0.0,
+        "evidence_files": [],
         "gate_outcome": "INSUFFICIENT",
         "reason": "No evidence was retrieved for this query.",
         "missing": [
@@ -424,6 +551,17 @@
   "summary": {
     "chunk_count": 20,
     "llm_active": true,
-    "llm_dependent_metrics_available": false
+    "llm_dependent_metrics_available": false,
+    "baseline_pipeline": [
+      "lexical",
+      "budget",
+      "reasoning"
+    ],
+    "current_pipeline": [
+      "hybrid",
+      "corrective",
+      "budget",
+      "verifier"
+    ]
   }
 }
