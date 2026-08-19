@@ -17,6 +17,8 @@ Design goals:
 - remove clearly irrelevant evidence
 - improve query-term coverage
 - prefer independent evidence sources when appropriate
+- avoid aggressive filtering that destroys recall
+- preserve useful weaker candidates when they still match the query
 - remain deterministic
 - avoid an additional LLM call
 - never fabricate evidence
@@ -66,9 +68,7 @@ def _tokenize(text: str) -> set[str]:
     """Return normalized non-stopword terms."""
     return {
         token
-        for token in _TOKEN_RE.findall(
-            str(text).lower()
-        )
+        for token in _TOKEN_RE.findall(str(text).lower())
         if token not in _STOPWORDS
     }
 
@@ -112,14 +112,9 @@ def _quality_score(
 ) -> tuple[float, float]:
     """Calculate deterministic corrective relevance.
 
-    Retrieval score is the primary signal.
+    Retrieval score remains the primary signal.
 
-    Query coverage is the secondary signal.
-
-    The resulting quality score is:
-
-        70% retrieval score
-        30% query-term coverage
+    Query coverage is a supporting signal.
 
     Returns:
         (quality_score, query_coverage)
@@ -188,47 +183,87 @@ def _select_diverse(
     chunks: list[dict],
     limit: int,
 ) -> list[dict]:
-    """Select strong evidence while preferring file diversity.
+    """Select evidence while softly preferring file diversity.
 
-    The first pass selects at most one strong candidate from each file.
+    Retrieval strength remains the primary consideration.
 
-    The second pass fills remaining positions with the strongest unused
-    candidates.
+    The strongest candidate is always retained.
 
-    Example:
-
-        E1 orders.py
-        E2 orders.py
-        E3 pricing.py
-
-    with top_k=2 becomes:
-
-        E1 + E3
-
-    rather than:
-
-        E1 + E2
+    Diversity is used only after strong candidates have been ranked,
+    preventing source diversity from destroying retrieval recall.
     """
 
     if limit <= 0:
         return []
 
+    if not chunks:
+        return []
+
+    if len(chunks) <= limit:
+        return chunks[:limit]
+
     selected: list[dict] = []
 
-    used_ids: set[str] = set()
+    selected_ids: set[str] = set()
     used_files: set[str] = set()
 
     # ---------------------------------------------------------------
-    # Pass 1: maximize source diversity.
+    # Pass 1: always retain the strongest candidate.
     # ---------------------------------------------------------------
 
-    for chunk in chunks:
+    first = chunks[0]
+
+    first_id = str(
+        first.get(
+            "evidence_id",
+            "",
+        )
+    )
+
+    if first_id:
+        selected.append(
+            first
+        )
+
+        selected_ids.add(
+            first_id
+        )
+
+    first_file = str(
+        first.get(
+            "file_path",
+            "",
+        )
+    )
+
+    if first_file:
+        used_files.add(
+            first_file
+        )
+
+    if len(selected) >= limit:
+        return selected
+
+    # ---------------------------------------------------------------
+    # Pass 2: softly prefer new evidence sources.
+    # ---------------------------------------------------------------
+
+    for chunk in chunks[1:]:
+        if len(selected) >= limit:
+            break
+
         evidence_id = str(
             chunk.get(
                 "evidence_id",
                 "",
             )
         )
+
+        if (
+            not evidence_id
+            or evidence_id in selected_ids
+        ):
+            continue
 
         file_path = str(
             chunk.get(
@@ -237,35 +272,30 @@ def _select_diverse(
             )
         )
 
-        if not evidence_id:
-            continue
-
-        if evidence_id in used_ids:
-            continue
-
-        if file_path in used_files:
-            continue
-
-        selected.append(
-            chunk
-        )
-
-        used_ids.add(
-            evidence_id
-        )
-
-        used_files.add(
+        if (
             file_path
-        )
+            and file_path not in used_files
+        ):
+            selected.append(
+                chunk
+            )
 
-        if len(selected) >= limit:
-            return selected
+            selected_ids.add(
+                evidence_id
+            )
+
+            used_files.add(
+                file_path
+            )
 
     # ---------------------------------------------------------------
-    # Pass 2: fill remaining positions with strongest unused evidence.
+    # Pass 3: fill remaining positions by corrective ranking.
     # ---------------------------------------------------------------
 
     for chunk in chunks:
+        if len(selected) >= limit:
+            break
+
         evidence_id = str(
             chunk.get(
                 "evidence_id",
@@ -273,24 +303,59 @@ def _select_diverse(
             )
         )
 
-        if not evidence_id:
-            continue
-
-        if evidence_id in used_ids:
+        if (
+            not evidence_id
+            or evidence_id in selected_ids
+        ):
             continue
 
         selected.append(
             chunk
         )
 
-        used_ids.add(
+        selected_ids.add(
             evidence_id
         )
 
-        if len(selected) >= limit:
-            break
+    return selected[:limit]
 
-    return selected
+
+def _build_files(
+    chunks: list[dict],
+) -> list[str]:
+    """Return unique evidence file paths."""
+    return sorted(
+        {
+            str(
+                chunk.get(
+                    "file_path",
+                    "",
+                )
+            )
+            for chunk in chunks
+            if chunk.get(
+                "file_path"
+            )
+        }
+    )
+
+
+def _build_query_coverage(
+    chunks: list[dict],
+) -> float:
+    """Return the strongest query coverage among selected evidence."""
+    return max(
+        (
+            float(
+                chunk.get(
+                    "query_coverage",
+                    0.0,
+                )
+            )
+            for chunk in chunks
+        ),
+        default=0.0,
+    )
 
 
 def correct_retrieval(
@@ -298,45 +363,37 @@ def correct_retrieval(
     query: str,
     top_k: int = 5,
     min_quality: float = 0.08,
+    min_fallback_coverage: float = 0.10,
 ) -> dict:
     """Correct and rerank Hybrid RAG candidates.
 
     The corrective stage:
 
-    1. removes duplicates
+    1. removes duplicate evidence IDs
     2. calculates query-term coverage
     3. calculates corrective relevance
-    4. removes clearly weak candidates
-    5. reranks surviving evidence
-    6. prefers evidence from different files
-    7. reports trace information for evaluation
+    4. removes clearly irrelevant candidates
+    5. preserves weaker candidates only when they still have
+       meaningful query overlap
+    6. reranks evidence deterministically
+    7. softly prefers evidence from different files
+    8. reports trace information for evaluation
 
-    Args:
-        candidates:
-            Candidate evidence returned by Hybrid RAG.
+    ``min_fallback_coverage`` prevents unrelated low-scoring evidence
+    from being reintroduced merely for recall.
 
-        query:
-            Original user investigation query.
+    Example:
 
-        top_k:
-            Maximum number of evidence chunks returned.
+        Relevant weak evidence:
+            quality < min_quality
+            but query coverage >= min_fallback_coverage
 
-        min_quality:
-            Minimum corrective relevance score.
+        Clearly unrelated evidence:
+            quality < min_quality
+            and query coverage == 0
 
-            The default is intentionally calibrated to Hybrid RAG's
-            Reciprocal Rank Fusion score scale. RRF scores are small
-            values, so an aggressive threshold such as 0.20 would
-            incorrectly reject valid evidence.
-
-    Returns:
-        {
-            "results": [...],
-            "status": "PASS" | "CORRECTED" | "INSUFFICIENT",
-            "reason": "...",
-            "query_coverage": float,
-            "files": [...]
-        }
+    The Evidence Gate remains responsible for deciding whether the
+    selected evidence is actually sufficient to answer the query.
     """
 
     # ---------------------------------------------------------------
@@ -378,7 +435,7 @@ def correct_retrieval(
         }
 
     # ---------------------------------------------------------------
-    # 3. Score candidates.
+    # 3. Score every candidate.
     # ---------------------------------------------------------------
 
     scored: list[
@@ -390,10 +447,6 @@ def correct_retrieval(
             chunk,
             query_terms,
         )
-
-        # Remove clearly irrelevant candidates.
-        if quality < min_quality:
-            continue
 
         corrected = dict(
             chunk
@@ -429,32 +482,7 @@ def correct_retrieval(
         )
 
     # ---------------------------------------------------------------
-    # 4. No candidate passed correction.
-    # ---------------------------------------------------------------
-
-    if not scored:
-        return {
-            "results": [],
-            "status": "INSUFFICIENT",
-            "reason": (
-                "Hybrid retrieval returned candidates, but none "
-                "passed the corrective relevance threshold."
-            ),
-            "query_coverage": 0.0,
-            "files": [],
-        }
-
-    # ---------------------------------------------------------------
-    # 5. Corrective reranking.
-    #
-    # Primary:
-    #     corrective score
-    #
-    # Secondary:
-    #     query coverage
-    #
-    # Tertiary:
-    #     original retrieval score
+    # 4. Rank all candidates.
     # ---------------------------------------------------------------
 
     scored.sort(
@@ -468,17 +496,116 @@ def correct_retrieval(
         reverse=True,
     )
 
-    corrected_candidates = [
-        item[0]
+    # ---------------------------------------------------------------
+    # 5. Strong candidates.
+    # ---------------------------------------------------------------
+
+    strong = [
+        item
         for item in scored
+        if item[1] >= min_quality
     ]
 
     # ---------------------------------------------------------------
-    # 6. Select evidence with source diversity.
+    # 6. Recall-preserving candidates.
+    #
+    # A weak candidate is eligible only if it has meaningful query
+    # overlap. This prevents unrelated evidence from returning.
+    # ---------------------------------------------------------------
+
+    recall_candidates = [
+        item
+        for item in scored
+        if (
+            item[1] < min_quality
+            and item[2] >= min_fallback_coverage
+        )
+    ]
+
+    # ---------------------------------------------------------------
+    # 7. If nothing passes the normal threshold, preserve only
+    # meaningful query-matching evidence.
+    # ---------------------------------------------------------------
+
+    if not strong:
+        if recall_candidates:
+            fallback_count = min(
+                top_k,
+                len(recall_candidates),
+            )
+
+            selected = [
+                item[0]
+                for item in recall_candidates[
+                    :fallback_count
+                ]
+            ]
+
+            query_coverage = _build_query_coverage(
+                selected
+            )
+
+            files = _build_files(
+                selected
+            )
+
+            return {
+                "results": selected,
+                "status": "FALLBACK",
+                "reason": (
+                    "Corrective threshold rejected the strongest "
+                    "candidates, but query-matching fallback "
+                    "evidence was preserved for verifier review."
+                ),
+                "query_coverage": round(
+                    query_coverage,
+                    6,
+                ),
+                "files": files,
+            }
+
+        return {
+            "results": [],
+            "status": "INSUFFICIENT",
+            "reason": (
+                "Hybrid retrieval candidates did not contain "
+                "meaningful query-relevant evidence."
+            ),
+            "query_coverage": 0.0,
+            "files": [],
+        }
+
+    # ---------------------------------------------------------------
+    # 8. Build candidate pool.
+    #
+    # Strong evidence first.
+    #
+    # Then add only weak evidence that has meaningful query overlap.
+    # ---------------------------------------------------------------
+
+    candidate_pool = [
+        item[0]
+        for item in strong
+    ]
+
+    if len(candidate_pool) < top_k:
+        remaining = top_k - len(
+            candidate_pool
+        )
+
+        candidate_pool.extend(
+            item[0]
+            for item in recall_candidates[
+                :remaining
+            ]
+        )
+
+    # ---------------------------------------------------------------
+    # 9. Soft source diversity.
     # ---------------------------------------------------------------
 
     selected = _select_diverse(
-        corrected_candidates,
+        candidate_pool,
         top_k,
     )
 
@@ -494,44 +621,16 @@ def correct_retrieval(
             "files": [],
         }
 
-    # ---------------------------------------------------------------
-    # 7. Aggregate query coverage.
-    #
-    # Maximum coverage is used because one evidence chunk may fully
-    # answer one important aspect of a query.
-    # ---------------------------------------------------------------
+    query_coverage = _build_query_coverage(
+        selected
+    )
 
-    query_coverage = max(
-        float(
-            chunk.get(
-                "query_coverage",
-                0.0,
-            )
-        )
-        for chunk in selected
+    files = _build_files(
+        selected
     )
 
     # ---------------------------------------------------------------
-    # 8. Evidence source list.
-    # ---------------------------------------------------------------
-
-    files = sorted(
-        {
-            str(
-                chunk.get(
-                    "file_path",
-                    "",
-                )
-            )
-            for chunk in selected
-            if chunk.get(
-                "file_path"
-            )
-        }
-    )
-
-    # ---------------------------------------------------------------
-    # 9. Determine whether correction changed retrieval.
+    # 10. Determine whether correction changed retrieval.
     # ---------------------------------------------------------------
 
     original_ids = [
@@ -549,7 +648,7 @@ def correct_retrieval(
     ]
 
     original_top_ids = original_ids[
-        : len(selected_ids)
+        :len(selected_ids)
     ]
 
     changed = (
@@ -563,22 +662,44 @@ def correct_retrieval(
         - len(selected),
     )
 
+    selected_weak_count = sum(
+        1
+        for chunk in selected
+        if float(
+            chunk.get(
+                "corrective_score",
+                0.0,
+            )
+        ) < min_quality
+    )
+
     # ---------------------------------------------------------------
-    # 10. Final corrective status.
+    # 11. Final corrective status.
     # ---------------------------------------------------------------
 
     if (
         removed_count > 0
         or changed
+        or selected_weak_count > 0
     ):
         status = "CORRECTED"
 
-        reason = (
-            f"Corrective retrieval retained "
-            f"{len(selected)} strong candidate(s), "
-            f"removed or reordered weak evidence, "
-            f"and applied evidence-source diversity."
-        )
+        if selected_weak_count > 0:
+            reason = (
+                f"Corrective retrieval retained "
+                f"{len(selected)} candidate(s), prioritized "
+                f"strong evidence, preserved "
+                f"{selected_weak_count} lower-scoring but "
+                f"query-relevant candidate(s), and softly "
+                f"preferred evidence-source diversity."
+            )
+        else:
+            reason = (
+                f"Corrective retrieval retained "
+                f"{len(selected)} strong candidate(s), "
+                f"removed or reordered weak evidence, "
+                f"and softly preferred evidence-source diversity."
+            )
 
     else:
         status = "PASS"
