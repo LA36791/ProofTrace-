@@ -1,0 +1,429 @@
+{
+  "top_k": 5,
+  "max_tokens": 800,
+  "cases": [
+    {
+      "id": "q_discount_insufficient",
+      "query": "Customers report a discount code SAVE20 is applied but the final charge is still the full price. What evidence explains why the discount is not reflected in the total?",
+      "ground_truth_sufficient": false,
+      "baseline": {
+        "mode": "lexical",
+        "retrieved_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7",
+          "ev_53cc42e20d05a211"
+        ],
+        "selected_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7",
+          "ev_53cc42e20d05a211"
+        ],
+        "context_tokens": 299,
+        "retrieval_latency_ms": 0.473,
+        "gate_outcome": null,
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"Customers report a discount code SAVE20 is applied but the final charge is still the full price. What evidence explains why the discount is not reflected in the total?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py, data/demo_repo/pricing.py.",
+          "evidence_ids": [
+            "ev_c38d29306d112189",
+            "ev_aef3521b2f1d538b",
+            "ev_d2996b5bcfa58592",
+            "ev_4057a301680a78a7",
+            "ev_53cc42e20d05a211"
+          ]
+        },
+        "llm_active": false,
+        "relevant_ids": [
+          "ev_4057a301680a78a7",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_a3954958eff6c9c2",
+          "ev_aef3521b2f1d538b",
+          "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
+          "ev_d809544a404fbb26"
+        ],
+        "precision_at_k": 0.8,
+        "recall_at_k": 0.5,
+        "ndcg_at_k": 0.8687949224876582,
+        "gate_accuracy": null,
+        "abstention_correct": null,
+        "citation_valid": true
+      },
+      "current": {
+        "mode": "hybrid",
+        "retrieved_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7",
+          "ev_d809544a404fbb26"
+        ],
+        "selected_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7",
+          "ev_d809544a404fbb26"
+        ],
+        "context_tokens": 234,
+        "retrieval_latency_ms": 2.621,
+        "gate_outcome": "INSUFFICIENT",
+        "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
+        "missing": [
+          "A reproducible failing case with the relevant inputs and expected vs actual result",
+          "Runtime or external-system evidence showing what happened during the failure"
+        ],
+        "conclusion": null,
+        "llm_active": false,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+        "relevant_ids": [
+          "ev_4057a301680a78a7",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_a3954958eff6c9c2",
+          "ev_aef3521b2f1d538b",
+          "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
+          "ev_d809544a404fbb26"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.625,
+        "ndcg_at_k": 1.0,
+        "gate_accuracy": true,
+        "abstention_correct": true,
+        "citation_valid": true
+      }
+    },
+    {
+      "id": "q_discount_sufficient",
+      "query": "Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.",
+      "ground_truth_sufficient": true,
+      "baseline": {
+        "mode": "lexical",
+        "retrieved_ids": [
+          "ev_7348c004730e8794",
+          "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_a35039ed322910a1"
+        ],
+        "selected_ids": [
+          "ev_7348c004730e8794",
+          "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_a35039ed322910a1"
+        ],
+        "context_tokens": 348,
+        "retrieval_latency_ms": 0.593,
+        "gate_outcome": null,
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.\" is supported by code in: data/demo_repo/order.py, data/demo_repo/pricing.py.",
+          "evidence_ids": [
+            "ev_7348c004730e8794",
+            "ev_d2996b5bcfa58592",
+            "ev_c38d29306d112189",
+            "ev_aef3521b2f1d538b",
+            "ev_a35039ed322910a1"
+          ]
+        },
+        "llm_active": false,
+        "relevant_ids": [
+          "ev_4057a301680a78a7",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_a3954958eff6c9c2",
+          "ev_aef3521b2f1d538b",
+          "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
+          "ev_d809544a404fbb26"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.625,
+        "ndcg_at_k": 1.0,
+        "gate_accuracy": null,
+        "abstention_correct": null,
+        "citation_valid": true
+      },
+      "current": {
+        "mode": "hybrid",
+        "retrieved_ids": [
+          "ev_7348c004730e8794",
+          "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
+          "ev_a35039ed322910a1",
+          "ev_aef3521b2f1d538b"
+        ],
+        "selected_ids": [
+          "ev_7348c004730e8794",
+          "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
+          "ev_a35039ed322910a1",
+          "ev_aef3521b2f1d538b"
+        ],
+        "context_tokens": 348,
+        "retrieval_latency_ms": 3.0,
+        "gate_outcome": "SUFFICIENT",
+        "reason": "Retrieved 5 evidence chunks and the query can be addressed from repository evidence.",
+        "missing": [],
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.\" is supported by code in: data/demo_repo/order.py, data/demo_repo/pricing.py.",
+          "evidence_ids": [
+            "ev_7348c004730e8794",
+            "ev_d2996b5bcfa58592",
+            "ev_c38d29306d112189",
+            "ev_a35039ed322910a1",
+            "ev_aef3521b2f1d538b"
+          ]
+        },
+        "llm_active": false,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+        "relevant_ids": [
+          "ev_4057a301680a78a7",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_a3954958eff6c9c2",
+          "ev_aef3521b2f1d538b",
+          "ev_c38d29306d112189",
+          "ev_d2996b5bcfa58592",
+          "ev_d809544a404fbb26"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.625,
+        "ndcg_at_k": 1.0,
+        "gate_accuracy": true,
+        "abstention_correct": true,
+        "citation_valid": true
+      }
+    },
+    {
+      "id": "q_stock_multi_file",
+      "query": "An order for an out-of-stock SKU-C item is failing. Which files show stock checking, reservation, and how the order placement reacts?",
+      "ground_truth_sufficient": false,
+      "baseline": {
+        "mode": "lexical",
+        "retrieved_ids": [
+          "ev_caca5d185320e853",
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2",
+          "ev_7348c004730e8794"
+        ],
+        "selected_ids": [
+          "ev_caca5d185320e853",
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2",
+          "ev_7348c004730e8794"
+        ],
+        "context_tokens": 254,
+        "retrieval_latency_ms": 0.887,
+        "gate_outcome": null,
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"An order for an out-of-stock SKU-C item is failing. Which files show stock checking, reservation, and how the order placement reacts?\" is supported by code in: data/demo_repo/inventory.py, data/demo_repo/order.py.",
+          "evidence_ids": [
+            "ev_caca5d185320e853",
+            "ev_a35039ed322910a1",
+            "ev_dd7df3535af38a8a",
+            "ev_ddcaf7f9a6341db2",
+            "ev_7348c004730e8794"
+          ]
+        },
+        "llm_active": false,
+        "relevant_ids": [
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_caca5d185320e853",
+          "ev_d2996b5bcfa58592",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.8333333333333334,
+        "ndcg_at_k": 1.0,
+        "gate_accuracy": null,
+        "abstention_correct": null,
+        "citation_valid": true
+      },
+      "current": {
+        "mode": "hybrid",
+        "retrieved_ids": [
+          "ev_caca5d185320e853",
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2",
+          "ev_7348c004730e8794"
+        ],
+        "selected_ids": [
+          "ev_caca5d185320e853",
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2",
+          "ev_7348c004730e8794"
+        ],
+        "context_tokens": 254,
+        "retrieval_latency_ms": 3.511,
+        "gate_outcome": "INSUFFICIENT",
+        "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
+        "missing": [
+          "A reproducible failing case with the relevant inputs and expected vs actual result",
+          "Runtime or external-system evidence showing what happened during the failure"
+        ],
+        "conclusion": null,
+        "llm_active": false,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+        "relevant_ids": [
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_caca5d185320e853",
+          "ev_d2996b5bcfa58592",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.8333333333333334,
+        "ndcg_at_k": 1.0,
+        "gate_accuracy": true,
+        "abstention_correct": true,
+        "citation_valid": true
+      }
+    },
+    {
+      "id": "q_payment_charge",
+      "query": "How is a card charged and what happens when a charge is declined or invalid?",
+      "ground_truth_sufficient": true,
+      "baseline": {
+        "mode": "lexical",
+        "retrieved_ids": [
+          "ev_53cc42e20d05a211",
+          "ev_28199a7ef4d5e50d",
+          "ev_a35039ed322910a1"
+        ],
+        "selected_ids": [
+          "ev_53cc42e20d05a211",
+          "ev_28199a7ef4d5e50d",
+          "ev_a35039ed322910a1"
+        ],
+        "context_tokens": 202,
+        "retrieval_latency_ms": 0.36,
+        "gate_outcome": null,
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"How is a card charged and what happens when a charge is declined or invalid?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py.",
+          "evidence_ids": [
+            "ev_53cc42e20d05a211",
+            "ev_28199a7ef4d5e50d",
+            "ev_a35039ed322910a1"
+          ]
+        },
+        "llm_active": false,
+        "relevant_ids": [
+          "ev_28199a7ef4d5e50d",
+          "ev_53cc42e20d05a211",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_d2996b5bcfa58592"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.6,
+        "ndcg_at_k": 0.7227265726449519,
+        "gate_accuracy": null,
+        "abstention_correct": null,
+        "citation_valid": true
+      },
+      "current": {
+        "mode": "hybrid",
+        "retrieved_ids": [
+          "ev_53cc42e20d05a211",
+          "ev_28199a7ef4d5e50d",
+          "ev_a35039ed322910a1"
+        ],
+        "selected_ids": [
+          "ev_53cc42e20d05a211",
+          "ev_28199a7ef4d5e50d",
+          "ev_a35039ed322910a1"
+        ],
+        "context_tokens": 202,
+        "retrieval_latency_ms": 1.152,
+        "gate_outcome": "SUFFICIENT",
+        "reason": "Retrieved 3 evidence chunks and the query can be addressed from repository evidence.",
+        "missing": [],
+        "conclusion": {
+          "statement": "Based on retrieved evidence, the issue described by \"How is a card charged and what happens when a charge is declined or invalid?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py.",
+          "evidence_ids": [
+            "ev_53cc42e20d05a211",
+            "ev_28199a7ef4d5e50d",
+            "ev_a35039ed322910a1"
+          ]
+        },
+        "llm_active": false,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
+        "relevant_ids": [
+          "ev_28199a7ef4d5e50d",
+          "ev_53cc42e20d05a211",
+          "ev_7348c004730e8794",
+          "ev_a35039ed322910a1",
+          "ev_d2996b5bcfa58592"
+        ],
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.6,
+        "ndcg_at_k": 0.7227265726449519,
+        "gate_accuracy": true,
+        "abstention_correct": true,
+        "citation_valid": true
+      }
+    },
+    {
+      "id": "q_no_match",
+      "query": "What color should the corporate logo be for the annual shareholder report?",
+      "ground_truth_sufficient": false,
+      "baseline": {
+        "mode": "lexical",
+        "retrieved_ids": [],
+        "selected_ids": [],
+        "context_tokens": 0,
+        "retrieval_latency_ms": 0.49,
+        "gate_outcome": null,
+        "conclusion": null,
+        "llm_active": false,
+        "relevant_ids": [],
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "ndcg_at_k": 0.0,
+        "gate_accuracy": null,
+        "abstention_correct": null,
+        "citation_valid": false
+      },
+      "current": {
+        "mode": "hybrid",
+        "retrieved_ids": [],
+        "selected_ids": [],
+        "context_tokens": 0,
+        "retrieval_latency_ms": 0.722,
+        "gate_outcome": "INSUFFICIENT",
+        "reason": "No evidence was retrieved for this query.",
+        "missing": [
+          "No repository evidence was retrieved for this query."
+        ],
+        "conclusion": null,
+        "llm_active": true,
+        "llm_error": null,
+        "relevant_ids": [],
+        "precision_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "ndcg_at_k": 0.0,
+        "gate_accuracy": true,
+        "abstention_correct": true,
+        "citation_valid": true
+      }
+    }
+  ],
+  "summary": {
+    "chunk_count": 20,
+    "llm_active": true,
+    "llm_dependent_metrics_available": false
+  }
+}

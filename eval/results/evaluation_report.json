@@ -23,10 +23,10 @@
           "ev_53cc42e20d05a211"
         ],
         "context_tokens": 299,
-        "retrieval_latency_ms": 0.473,
+        "retrieval_latency_ms": 0.484,
         "gate_outcome": null,
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"Customers report a discount code SAVE20 is applied but the final charge is still the full price. What evidence explains why the discount is not reflected in the total?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py, data/demo_repo/pricing.py.",
+          "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax.",
           "evidence_ids": [
             "ev_c38d29306d112189",
             "ev_aef3521b2f1d538b",
@@ -70,12 +70,12 @@
           "ev_d809544a404fbb26"
         ],
         "context_tokens": 234,
-        "retrieval_latency_ms": 2.621,
+        "retrieval_latency_ms": 1.776,
         "gate_outcome": "INSUFFICIENT",
         "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
         "missing": [
           "A reproducible failing case with the relevant inputs and expected vs actual result",
-          "Runtime or external-system evidence showing what happened during the failure"
+          "Runtime, request, state, database, or external-system evidence showing what happened during the failure"
         ],
         "conclusion": null,
         "llm_active": false,
@@ -119,10 +119,10 @@
           "ev_a35039ed322910a1"
         ],
         "context_tokens": 348,
-        "retrieval_latency_ms": 0.593,
+        "retrieval_latency_ms": 0.508,
         "gate_outcome": null,
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.\" is supported by code in: data/demo_repo/order.py, data/demo_repo/pricing.py.",
+          "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax. The resulting total is passed to charge_card for payment.",
           "evidence_ids": [
             "ev_7348c004730e8794",
             "ev_d2996b5bcfa58592",
@@ -166,12 +166,12 @@
           "ev_aef3521b2f1d538b"
         ],
         "context_tokens": 348,
-        "retrieval_latency_ms": 3.0,
+        "retrieval_latency_ms": 2.109,
         "gate_outcome": "SUFFICIENT",
         "reason": "Retrieved 5 evidence chunks and the query can be addressed from repository evidence.",
         "missing": [],
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.\" is supported by code in: data/demo_repo/order.py, data/demo_repo/pricing.py.",
+          "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax. The resulting total is passed to charge_card for payment.",
           "evidence_ids": [
             "ev_7348c004730e8794",
             "ev_d2996b5bcfa58592",
@@ -221,10 +221,10 @@
           "ev_7348c004730e8794"
         ],
         "context_tokens": 254,
-        "retrieval_latency_ms": 0.887,
+        "retrieval_latency_ms": 0.334,
         "gate_outcome": null,
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"An order for an out-of-stock SKU-C item is failing. Which files show stock checking, reservation, and how the order placement reacts?\" is supported by code in: data/demo_repo/inventory.py, data/demo_repo/order.py.",
+          "statement": "Based on the retrieved repository evidence, the query is supported by the following code locations: data/demo_repo/inventory.py, data/demo_repo/order.py.",
           "evidence_ids": [
             "ev_caca5d185320e853",
             "ev_a35039ed322910a1",
@@ -266,12 +266,12 @@
           "ev_7348c004730e8794"
         ],
         "context_tokens": 254,
-        "retrieval_latency_ms": 3.511,
+        "retrieval_latency_ms": 1.822,
         "gate_outcome": "INSUFFICIENT",
         "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
         "missing": [
           "A reproducible failing case with the relevant inputs and expected vs actual result",
-          "Runtime or external-system evidence showing what happened during the failure"
+          "Runtime, request, state, database, or external-system evidence showing what happened during the failure"
         ],
         "conclusion": null,
         "llm_active": false,
@@ -309,10 +309,10 @@
           "ev_a35039ed322910a1"
         ],
         "context_tokens": 202,
-        "retrieval_latency_ms": 0.36,
+        "retrieval_latency_ms": 0.351,
         "gate_outcome": null,
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"How is a card charged and what happens when a charge is declined or invalid?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py.",
+          "statement": "The retrieved payment code uses charge_card to process the card charge. The card token is supplied to the payment operation.",
           "evidence_ids": [
             "ev_53cc42e20d05a211",
             "ev_28199a7ef4d5e50d",
@@ -347,12 +347,12 @@
           "ev_a35039ed322910a1"
         ],
         "context_tokens": 202,
-        "retrieval_latency_ms": 1.152,
+        "retrieval_latency_ms": 1.037,
         "gate_outcome": "SUFFICIENT",
         "reason": "Retrieved 3 evidence chunks and the query can be addressed from repository evidence.",
         "missing": [],
         "conclusion": {
-          "statement": "Based on retrieved evidence, the issue described by \"How is a card charged and what happens when a charge is declined or invalid?\" is supported by code in: data/demo_repo/order.py, data/demo_repo/payments.py.",
+          "statement": "The retrieved payment code uses charge_card to process the card charge. The card token is supplied to the payment operation.",
           "evidence_ids": [
             "ev_53cc42e20d05a211",
             "ev_28199a7ef4d5e50d",
@@ -385,7 +385,7 @@
         "retrieved_ids": [],
         "selected_ids": [],
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.49,
+        "retrieval_latency_ms": 0.322,
         "gate_outcome": null,
         "conclusion": null,
         "llm_active": false,
@@ -402,7 +402,7 @@
         "retrieved_ids": [],
         "selected_ids": [],
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.722,
+        "retrieval_latency_ms": 0.513,
         "gate_outcome": "INSUFFICIENT",
         "reason": "No evidence was retrieved for this query.",
         "missing": [

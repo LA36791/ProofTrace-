@@ -1,0 +1,59 @@
+[
+  {
+    "id": "q_discount_insufficient",
+    "query": "Customers report a discount code SAVE20 is applied but the final charge is still the full price. What evidence explains why the discount is not reflected in the total?",
+    "sufficient": false,
+    "relevant": [
+      "data/demo_repo/pricing.py",
+      "data/demo_repo/order.py",
+      "data/demo_repo/tax.py"
+    ],
+    "missing": [
+      "A reproduction of the reported failing order (cart contents, code, and expected vs actual total)",
+      "The payment gateway response for a failing order"
+    ]
+  },
+  {
+    "id": "q_discount_sufficient",
+    "query": "Trace how a SAVE10 discount code flows from the cart through pricing and tax into the final order total.",
+    "sufficient": true,
+    "relevant": [
+      "data/demo_repo/pricing.py",
+      "data/demo_repo/order.py",
+      "data/demo_repo/tax.py"
+    ],
+    "missing": []
+  },
+  {
+    "id": "q_stock_multi_file",
+    "query": "An order for an out-of-stock SKU-C item is failing. Which files show stock checking, reservation, and how the order placement reacts?",
+    "sufficient": false,
+    "relevant": [
+      "data/demo_repo/inventory.py",
+      "data/demo_repo/order.py"
+    ],
+    "missing": [
+      "The specific order request that triggered the stock failure",
+      "Current stock levels for the failing SKU at the time of the order"
+    ]
+  },
+  {
+    "id": "q_payment_charge",
+    "query": "How is a card charged and what happens when a charge is declined or invalid?",
+    "sufficient": true,
+    "relevant": [
+      "data/demo_repo/payments.py",
+      "data/demo_repo/order.py"
+    ],
+    "missing": []
+  },
+  {
+    "id": "q_no_match",
+    "query": "What color should the corporate logo be for the annual shareholder report?",
+    "sufficient": false,
+    "relevant": [],
+    "missing": [
+      "No repository evidence is relevant to this query"
+    ]
+  }
+]
