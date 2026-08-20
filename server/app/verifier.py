@@ -36,6 +36,8 @@ import httpx
 # ---------------------------------------------------------------------------
 
 _API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+if _API_KEY in {"YOUR_REAL_API_KEY", "your_real_api_key"}:
+    _API_KEY = ""
 
 _API_BASE_URL = os.getenv(
     "OPENAI_BASE_URL",
