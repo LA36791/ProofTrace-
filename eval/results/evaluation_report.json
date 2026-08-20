@@ -32,7 +32,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 299,
-        "retrieval_latency_ms": 0.953,
+        "retrieval_latency_ms": 1.13,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -80,24 +80,40 @@
           "verifier"
         ],
         "hybrid_candidate_count": 8,
-        "retrieved_count": 0,
-        "selected_count": 0,
-        "retrieved_ids": [],
-        "selected_ids": [],
-        "context_tokens": 0,
-        "retrieval_latency_ms": 3.789,
-        "corrective_status": "INSUFFICIENT",
-        "corrective_reason": "Hybrid retrieval returned candidates, but none passed the corrective relevance threshold.",
-        "query_coverage": 0.0,
-        "evidence_files": [],
+        "retrieved_count": 5,
+        "selected_count": 5,
+        "retrieved_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_a35039ed322910a1",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7"
+        ],
+        "selected_ids": [
+          "ev_c38d29306d112189",
+          "ev_aef3521b2f1d538b",
+          "ev_a35039ed322910a1",
+          "ev_d2996b5bcfa58592",
+          "ev_4057a301680a78a7"
+        ],
+        "context_tokens": 324,
+        "retrieval_latency_ms": 4.246,
+        "corrective_status": "FALLBACK",
+        "corrective_reason": "Corrective threshold rejected the strongest candidates, but query-matching fallback evidence was preserved for verifier review.",
+        "query_coverage": 0.176471,
+        "evidence_files": [
+          "data/demo_repo/order.py",
+          "data/demo_repo/pricing.py"
+        ],
         "gate_outcome": "INSUFFICIENT",
-        "reason": "No evidence was retrieved for this query.",
+        "reason": "The query describes an observed failure, but repository evidence alone does not establish what happened in the specific failing case.",
         "missing": [
-          "No repository evidence was retrieved for this query."
+          "A reproducible failing case with the relevant inputs and expected vs actual result",
+          "Runtime, request, state, database, or external-system evidence showing what happened during the failure"
         ],
         "conclusion": null,
-        "llm_active": true,
-        "llm_error": null,
+        "llm_active": false,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -108,9 +124,9 @@
           "ev_d2996b5bcfa58592",
           "ev_d809544a404fbb26"
         ],
-        "precision_at_k": 0.0,
-        "recall_at_k": 0.0,
-        "ndcg_at_k": 0.0,
+        "precision_at_k": 1.0,
+        "recall_at_k": 0.625,
+        "ndcg_at_k": 1.0,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -144,7 +160,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 348,
-        "retrieval_latency_ms": 0.393,
+        "retrieval_latency_ms": 0.52,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -195,22 +211,22 @@
         "selected_count": 5,
         "retrieved_ids": [
           "ev_7348c004730e8794",
-          "ev_c38d29306d112189",
           "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
           "ev_a35039ed322910a1",
           "ev_aef3521b2f1d538b"
         ],
         "selected_ids": [
           "ev_7348c004730e8794",
-          "ev_c38d29306d112189",
           "ev_d2996b5bcfa58592",
+          "ev_c38d29306d112189",
           "ev_a35039ed322910a1",
           "ev_aef3521b2f1d538b"
         ],
         "context_tokens": 348,
-        "retrieval_latency_ms": 2.138,
+        "retrieval_latency_ms": 3.669,
         "corrective_status": "CORRECTED",
-        "corrective_reason": "Corrective retrieval retained 5 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "corrective_reason": "Corrective retrieval retained 5 strong candidate(s), removed or reordered weak evidence, and softly preferred evidence-source diversity.",
         "query_coverage": 0.384615,
         "evidence_files": [
           "data/demo_repo/order.py",
@@ -223,8 +239,8 @@
           "statement": "The order starts by calculating the cart subtotal. The discount is applied to the subtotal. Tax is calculated from the discounted amount. The final total is the discounted amount plus tax. The resulting total is passed to charge_card for payment.",
           "evidence_ids": [
             "ev_7348c004730e8794",
-            "ev_c38d29306d112189",
             "ev_d2996b5bcfa58592",
+            "ev_c38d29306d112189",
             "ev_a35039ed322910a1",
             "ev_aef3521b2f1d538b"
           ]
@@ -277,7 +293,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 254,
-        "retrieval_latency_ms": 0.404,
+        "retrieval_latency_ms": 0.937,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -322,20 +338,24 @@
           "verifier"
         ],
         "hybrid_candidate_count": 9,
-        "retrieved_count": 2,
-        "selected_count": 2,
+        "retrieved_count": 4,
+        "selected_count": 4,
         "retrieved_ids": [
           "ev_caca5d185320e853",
-          "ev_a35039ed322910a1"
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2"
         ],
         "selected_ids": [
           "ev_caca5d185320e853",
-          "ev_a35039ed322910a1"
+          "ev_a35039ed322910a1",
+          "ev_dd7df3535af38a8a",
+          "ev_ddcaf7f9a6341db2"
         ],
-        "context_tokens": 134,
-        "retrieval_latency_ms": 2.015,
+        "context_tokens": 196,
+        "retrieval_latency_ms": 3.747,
         "corrective_status": "CORRECTED",
-        "corrective_reason": "Corrective retrieval retained 2 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "corrective_reason": "Corrective retrieval retained 4 candidate(s), prioritized strong evidence, preserved 2 lower-scoring but query-relevant candidate(s), and softly preferred evidence-source diversity.",
         "query_coverage": 0.285714,
         "evidence_files": [
           "data/demo_repo/inventory.py",
@@ -359,8 +379,8 @@
           "ev_ddcaf7f9a6341db2"
         ],
         "precision_at_k": 1.0,
-        "recall_at_k": 0.3333333333333333,
-        "ndcg_at_k": 0.5531464700081437,
+        "recall_at_k": 0.6666666666666666,
+        "ndcg_at_k": 0.8687949224876582,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -390,7 +410,7 @@
         "retrieved_count": 3,
         "corrected_count": null,
         "context_tokens": 202,
-        "retrieval_latency_ms": 0.366,
+        "retrieval_latency_ms": 0.658,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -432,33 +452,36 @@
           "verifier"
         ],
         "hybrid_candidate_count": 3,
-        "retrieved_count": 2,
-        "selected_count": 2,
+        "retrieved_count": 3,
+        "selected_count": 3,
         "retrieved_ids": [
           "ev_53cc42e20d05a211",
-          "ev_a35039ed322910a1"
+          "ev_a35039ed322910a1",
+          "ev_28199a7ef4d5e50d"
         ],
         "selected_ids": [
           "ev_53cc42e20d05a211",
-          "ev_a35039ed322910a1"
+          "ev_a35039ed322910a1",
+          "ev_28199a7ef4d5e50d"
         ],
-        "context_tokens": 185,
-        "retrieval_latency_ms": 1.092,
+        "context_tokens": 202,
+        "retrieval_latency_ms": 2.164,
         "corrective_status": "CORRECTED",
-        "corrective_reason": "Corrective retrieval retained 2 strong candidate(s), removed or reordered weak evidence, and applied evidence-source diversity.",
+        "corrective_reason": "Corrective retrieval retained 3 candidate(s), prioritized strong evidence, preserved 1 lower-scoring but query-relevant candidate(s), and softly preferred evidence-source diversity.",
         "query_coverage": 0.571429,
         "evidence_files": [
           "data/demo_repo/order.py",
           "data/demo_repo/payments.py"
         ],
         "gate_outcome": "SUFFICIENT",
-        "reason": "Retrieved 2 evidence chunks and the query can be addressed from repository evidence.",
+        "reason": "Retrieved 3 evidence chunks and the query can be addressed from repository evidence.",
         "missing": [],
         "conclusion": {
           "statement": "The retrieved payment code uses charge_card to process the card charge. The card token is supplied to the payment operation.",
           "evidence_ids": [
             "ev_53cc42e20d05a211",
-            "ev_a35039ed322910a1"
+            "ev_a35039ed322910a1",
+            "ev_28199a7ef4d5e50d"
           ]
         },
         "llm_active": false,
@@ -471,8 +494,8 @@
           "ev_d2996b5bcfa58592"
         ],
         "precision_at_k": 1.0,
-        "recall_at_k": 0.4,
-        "ndcg_at_k": 0.5531464700081437,
+        "recall_at_k": 0.6,
+        "ndcg_at_k": 0.7227265726449519,
         "gate_accuracy": true,
         "abstention_correct": true,
         "citation_valid": true
@@ -494,7 +517,7 @@
         "retrieved_count": 0,
         "corrected_count": null,
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.396,
+        "retrieval_latency_ms": 0.556,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -525,7 +548,7 @@
         "retrieved_ids": [],
         "selected_ids": [],
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.526,
+        "retrieval_latency_ms": 0.762,
         "corrective_status": "INSUFFICIENT",
         "corrective_reason": "Hybrid retrieval returned no candidates.",
         "query_coverage": 0.0,
