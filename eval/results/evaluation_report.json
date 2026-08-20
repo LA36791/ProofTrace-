@@ -32,7 +32,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 299,
-        "retrieval_latency_ms": 0.481,
+        "retrieval_latency_ms": 0.546,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -97,7 +97,7 @@
           "ev_4057a301680a78a7"
         ],
         "context_tokens": 324,
-        "retrieval_latency_ms": 1.988,
+        "retrieval_latency_ms": 2.117,
         "corrective_status": "FALLBACK",
         "corrective_reason": "Corrective threshold rejected the strongest candidates, but query-matching fallback evidence was preserved for verifier review.",
         "query_coverage": 0.176471,
@@ -113,7 +113,7 @@
         ],
         "conclusion": null,
         "llm_active": false,
-        "llm_error": null,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -160,7 +160,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 348,
-        "retrieval_latency_ms": 0.348,
+        "retrieval_latency_ms": 0.429,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -224,7 +224,7 @@
           "ev_aef3521b2f1d538b"
         ],
         "context_tokens": 348,
-        "retrieval_latency_ms": 2.128,
+        "retrieval_latency_ms": 3.284,
         "corrective_status": "CORRECTED",
         "corrective_reason": "Corrective retrieval retained 5 strong candidate(s), removed or reordered weak evidence, and softly preferred evidence-source diversity.",
         "query_coverage": 0.384615,
@@ -246,7 +246,7 @@
           ]
         },
         "llm_active": false,
-        "llm_error": null,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
         "relevant_ids": [
           "ev_4057a301680a78a7",
           "ev_7348c004730e8794",
@@ -293,7 +293,7 @@
         "retrieved_count": 5,
         "corrected_count": null,
         "context_tokens": 254,
-        "retrieval_latency_ms": 0.379,
+        "retrieval_latency_ms": 0.448,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -353,7 +353,7 @@
           "ev_ddcaf7f9a6341db2"
         ],
         "context_tokens": 196,
-        "retrieval_latency_ms": 4.263,
+        "retrieval_latency_ms": 2.762,
         "corrective_status": "CORRECTED",
         "corrective_reason": "Corrective retrieval retained 4 candidate(s), prioritized strong evidence, preserved 2 lower-scoring but query-relevant candidate(s), and softly preferred evidence-source diversity.",
         "query_coverage": 0.285714,
@@ -369,7 +369,7 @@
         ],
         "conclusion": null,
         "llm_active": false,
-        "llm_error": null,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
         "relevant_ids": [
           "ev_7348c004730e8794",
           "ev_a35039ed322910a1",
@@ -410,7 +410,7 @@
         "retrieved_count": 3,
         "corrected_count": null,
         "context_tokens": 202,
-        "retrieval_latency_ms": 0.447,
+        "retrieval_latency_ms": 0.404,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -465,7 +465,7 @@
           "ev_28199a7ef4d5e50d"
         ],
         "context_tokens": 202,
-        "retrieval_latency_ms": 1.357,
+        "retrieval_latency_ms": 1.27,
         "corrective_status": "CORRECTED",
         "corrective_reason": "Corrective retrieval retained 3 candidate(s), prioritized strong evidence, preserved 1 lower-scoring but query-relevant candidate(s), and softly preferred evidence-source diversity.",
         "query_coverage": 0.571429,
@@ -485,7 +485,7 @@
           ]
         },
         "llm_active": false,
-        "llm_error": null,
+        "llm_error": "LLM request failed: Client error '401 Unauthorized' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401",
         "relevant_ids": [
           "ev_28199a7ef4d5e50d",
           "ev_53cc42e20d05a211",
@@ -517,7 +517,7 @@
         "retrieved_count": 0,
         "corrected_count": null,
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.302,
+        "retrieval_latency_ms": 0.654,
         "gate_outcome": null,
         "corrective_status": null,
         "corrective_reason": null,
@@ -548,7 +548,7 @@
         "retrieved_ids": [],
         "selected_ids": [],
         "context_tokens": 0,
-        "retrieval_latency_ms": 0.568,
+        "retrieval_latency_ms": 0.993,
         "corrective_status": "INSUFFICIENT",
         "corrective_reason": "Hybrid retrieval returned no candidates.",
         "query_coverage": 0.0,
@@ -559,7 +559,7 @@
           "No repository evidence was retrieved for this query."
         ],
         "conclusion": null,
-        "llm_active": false,
+        "llm_active": true,
         "llm_error": null,
         "relevant_ids": [],
         "precision_at_k": 0.0,
@@ -573,7 +573,7 @@
   ],
   "summary": {
     "chunk_count": 20,
-    "llm_active": false,
+    "llm_active": true,
     "llm_dependent_metrics_available": false,
     "baseline_pipeline": [
       "lexical",
